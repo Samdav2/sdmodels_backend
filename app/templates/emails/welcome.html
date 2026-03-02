@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to SDModels</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+        .header-subtitle {
+            color: #fecaca;
+            font-size: 14px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+        p {
+            color: #a3a3a3;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 20px 0;
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        .features {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        .feature-item {
+            display: flex;
+            align-items: start;
+            margin-bottom: 20px;
+        }
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .feature-text h3 {
+            color: #ffffff;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        .feature-text p {
+            color: #737373;
+            font-size: 14px;
+            margin: 0;
+        }
+        .footer {
+            background: #0a0a0a;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #262626;
+        }
+        .footer p {
+            color: #525252;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .social-links {
+            margin: 20px 0;
+        }
+        .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #737373;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">SDModels</div>
+            <div class="header-subtitle">Premium 3D Models Marketplace</div>
+        </div>
+        
+        <div class="content">
+            <h1>Welcome to SDModels! 🎉</h1>
+            <p>Hi {{username}},</p>
+            <p>We're thrilled to have you join our community of 3D artists and creators. SDModels is your gateway to discovering, sharing, and selling amazing 3D models.</p>
+            
+            <a href="{{verify_url}}" class="button">Verify Your Email</a>
+            
+            <div class="features">
+                <div class="feature-item">
+                    <div class="feature-icon">🎨</div>
+                    <div class="feature-text">
+                        <h3>Discover Amazing Models</h3>
+                        <p>Browse thousands of high-quality 3D models from talented creators worldwide</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon">💰</div>
+                    <div class="feature-text">
+                        <h3>Sell Your Creations</h3>
+                        <p>Turn your 3D art into income with our creator-friendly marketplace</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon">🤝</div>
+                    <div class="feature-text">
+                        <h3>Join Communities</h3>
+                        <p>Connect with other artists, share your work, and get feedback</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon">📚</div>
+                    <div class="feature-text">
+                        <h3>Learn & Grow</h3>
+                        <p>Access tutorials, courses, and resources to improve your skills</p>
+                    </div>
+                </div>
+            </div>
+            
+            <p>Ready to get started? Verify your email and complete your profile to unlock all features.</p>
+            
+            <p style="color: #525252; font-size: 14px;">If you didn't create this account, you can safely ignore this email.</p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 SDModels. All rights reserved.</p>
+            <div class="social-links">
+                <a href="#">Twitter</a>
+                <a href="#">Instagram</a>
+                <a href="#">Discord</a>
+            </div>
+            <p>Need help? <a href="mailto:support@sdmodels.com" style="color: #dc2626;">Contact Support</a></p>
+        </div>
+    </div>
+</body>
+</html>

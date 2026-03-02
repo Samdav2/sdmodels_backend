@@ -1,0 +1,364 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    WALLET-BOUNTY INTEGRATION FLOW DIAGRAM                    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          1. BOUNTY CREATION FLOW                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────┐
+    │  Client  │
+    └────┬─────┘
+         │
+         │ POST /api/v1/bounties
+         │ { budget: $100 }
+         ▼
+    ┌────────────────┐
+    │ Bounty Service │
+    └────┬───────────┘
+         │
+         │ 1. Check Balance
+         ▼
+    ┌─────────────────┐         ┌──────────────┐
+    │ Wallet Service  │────────▶│   Database   │
+    └────┬────────────┘         └──────────────┘
+         │                       wallet.available_balance
+         │
+         ├─── Available: $150 ──▶ ✅ Sufficient
+         │
+         ├─── Available: $50 ───▶ ❌ Insufficient
+         │                         Return 400 Error
+         │
+         │ 2. Hold Funds (if sufficient)
+         ▼
+    ┌─────────────────────────────────────────┐
+    │  Move $100 from Available to Held       │
+    │  Before: Available=$150, Held=$0        │
+    │  After:  Available=$50,  Held=$100      │
+    └─────────────────┬───────────────────────┘
+                      │
+                      │ 3. Create Transaction Record
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  Transaction: bounty_escrow             │
+    │  Amount: $100                           │
+    │  Reference: bounty_id                   │
+    │  Description: "Escrow for bounty: ..."  │
+    └─────────────────┬───────────────────────┘
+                      │
+                      │ 4. Create Bounty
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  Bounty Created                         │
+    │  Status: "open"                         │
+    │  Budget: $100 (held in escrow)         │
+    └─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          2. PAYMENT RELEASE FLOW                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────┐                    ┌──────────┐
+    │  Artist  │                    │  Client  │
+    └────┬─────┘                    └────┬─────┘
+         │                               │
+         │ Submit Work                   │
+         │ POST /bounties/{id}/submit    │
+         ▼                               │
+    ┌────────────────┐                  │
+    │   Submission   │                  │
+    │ Status: pending│                  │
+    └────────────────┘                  │
+                                        │ Approve Work
+                                        │ POST /bounties/{id}/approve
+                                        ▼
+                                   ┌────────────────┐
+                                   │ Bounty Service │
+                                   └────┬───────────┘
+                                        │
+                                        │ Calculate Amounts
+                                        ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  Bounty Amount: $100                                        │
+    │  Platform Fee (7.5%): $7.50                                 │
+    │  Artist Receives: $92.50                                    │
+    └─────────────────────────────┬───────────────────────────────┘
+                                  │
+                                  │ Release Funds
+                                  ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  CLIENT WALLET                                              │
+    │  Before: Available=$50,  Held=$100                          │
+    │  After:  Available=$50,  Held=$0                            │
+    │  Change: -$100 from Held                                    │
+    └─────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  ARTIST WALLET                                              │
+    │  Before: Available=$200, Held=$0                            │
+    │  After:  Available=$292.50, Held=$0                         │
+    │  Change: +$92.50 to Available                               │
+    └─────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  PLATFORM WALLET                                            │
+    │  Fee Collected: +$7.50                                      │
+    └─────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ Create Transactions
+                                  ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │  Client Transaction: bounty_payment (-$100)                 │
+    │  Artist Transaction: bounty_payment (+$92.50)               │
+    │  Platform Transaction: platform_fee (+$7.50)                │
+    └─────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         3. BOUNTY CANCELLATION FLOW                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────┐
+    │  Client  │
+    └────┬─────┘
+         │
+         │ DELETE /api/v1/bounties/{id}
+         ▼
+    ┌────────────────┐
+    │ Bounty Service │
+    └────┬───────────┘
+         │
+         │ 1. Check Authorization
+         │ 2. Check Status (must be "open" or "claimed")
+         ▼
+    ┌─────────────────────────────────────────┐
+    │  Refund Held Funds                      │
+    │  Before: Available=$50,  Held=$100      │
+    │  After:  Available=$150, Held=$0        │
+    │  Change: +$100 to Available             │
+    └─────────────────┬───────────────────────┘
+                      │
+                      │ Create Transaction
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  Transaction: bounty_refund             │
+    │  Amount: $100                           │
+    │  Description: "Refund: Cancelled..."    │
+    └─────────────────┬───────────────────────┘
+                      │
+                      │ Delete Bounty
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  Bounty Deleted                         │
+    │  Full Refund Issued                     │
+    └─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      4. MILESTONE-BASED BOUNTY FLOW                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────┐
+    │  Client  │
+    └────┬─────┘
+         │
+         │ Create Bounty with Milestones
+         │ Budget: $300
+         │ Milestone 1: $100
+         │ Milestone 2: $100
+         │ Milestone 3: $100
+         ▼
+    ┌─────────────────────────────────────────┐
+    │  Hold Full Budget in Escrow             │
+    │  Available: $500 → $200                 │
+    │  Held: $0 → $300                        │
+    └─────────────────┬───────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  Milestone 1 Completed                  │
+    │  Release: $92.50 to Artist              │
+    │  Fee: $7.50 to Platform                 │
+    │  Held: $300 → $200                      │
+    └─────────────────┬───────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  Milestone 2 Completed                  │
+    │  Release: $92.50 to Artist              │
+    │  Fee: $7.50 to Platform                 │
+    │  Held: $200 → $100                      │
+    └─────────────────┬───────────────────────┘
+                      │
+                      ▼
+    ┌─────────────────────────────────────────┐
+    │  Milestone 3 Completed                  │
+    │  Release: $92.50 to Artist              │
+    │  Fee: $7.50 to Platform                 │
+    │  Held: $100 → $0                        │
+    └─────────────────────────────────────────┘
+    
+    Total Artist Received: $277.50
+    Total Platform Fee: $22.50
+    Total Client Paid: $300.00
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           5. WALLET BALANCE STATES                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │  WALLET STRUCTURE                                           │
+    ├─────────────────────────────────────────────────────────────┤
+    │  Available Balance: $500                                    │
+    │  ├─ Can create bounties                                     │
+    │  ├─ Can withdraw to bank                                    │
+    │  └─ Immediately usable                                      │
+    │                                                             │
+    │  Held Balance: $150                                         │
+    │  ├─ Locked in escrow for active bounties                   │
+    │  ├─ Cannot withdraw                                         │
+    │  └─ Released when work approved or bounty cancelled        │
+    │                                                             │
+    │  Total Balance: $650                                        │
+    │  └─ Available + Held                                        │
+    └─────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         6. TRANSACTION TYPES                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────────────┬──────────────────────────────────────────────┐
+    │ Transaction Type │ Description                                  │
+    ├──────────────────┼──────────────────────────────────────────────┤
+    │ deposit          │ User adds funds via payment gateway          │
+    │ withdrawal       │ User removes funds to bank account           │
+    │ bounty_escrow    │ Funds held when bounty created               │
+    │ bounty_payment   │ Payment released to artist                   │
+    │ bounty_refund    │ Bounty cancelled, funds returned             │
+    │ platform_fee     │ Platform fee deducted (7.5%)                 │
+    │ milestone_escrow │ Funds held for specific milestone            │
+    │ milestone_payment│ Milestone payment released                   │
+    └──────────────────┴──────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         7. ERROR SCENARIOS                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    Scenario 1: Insufficient Balance
+    ┌──────────────────────────────────────────────────────────────┐
+    │  Available: $30                                              │
+    │  Bounty Budget: $50                                          │
+    │  Result: ❌ Error 400                                        │
+    │  Message: "Insufficient wallet balance. Available: $30.00,   │
+    │           Required: $50.00. Please deposit at least $20.00"  │
+    └──────────────────────────────────────────────────────────────┘
+
+    Scenario 2: Invalid Milestone Amounts
+    ┌──────────────────────────────────────────────────────────────┐
+    │  Bounty Budget: $300                                         │
+    │  Milestone 1: $100                                           │
+    │  Milestone 2: $100                                           │
+    │  Milestone 3: $50  (Total: $250 ≠ $300)                     │
+    │  Result: ❌ Error 400                                        │
+    │  Message: "Total milestone amount (250.00) must equal        │
+    │           bounty budget (300.00)"                            │
+    │  Action: Funds automatically refunded                        │
+    └──────────────────────────────────────────────────────────────┘
+
+    Scenario 3: Unauthorized Cancellation
+    ┌──────────────────────────────────────────────────────────────┐
+    │  User A creates bounty                                       │
+    │  User B tries to cancel                                      │
+    │  Result: ❌ Error 403                                        │
+    │  Message: "Not authorized to cancel this bounty"             │
+    └──────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         8. SECURITY FEATURES                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ✅ Atomic Transactions
+       └─ All balance operations happen in single DB transaction
+       └─ Either all succeed or all fail (no partial updates)
+
+    ✅ Balance Constraints
+       └─ Database CHECK constraints prevent negative balances
+       └─ available_balance >= 0
+       └─ held_balance >= 0
+
+    ✅ Authorization Checks
+       └─ Only bounty poster can approve/cancel
+       └─ Only claimed artist can submit work
+
+    ✅ Escrow Protection
+       └─ Funds locked until work approved
+       └─ Cannot be withdrawn or used for other bounties
+
+    ✅ Complete Audit Trail
+       └─ Every transaction logged with timestamp
+       └─ Balance before/after recorded
+       └─ Reference to bounty/milestone
+
+    ✅ Reference Tracking
+       └─ Each transaction links to bounty_id
+       └─ Can trace all funds for any bounty
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         9. INTEGRATION POINTS                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    Frontend ←→ API ←→ Service Layer ←→ Repository ←→ Database
+       │         │          │                │             │
+       │         │          │                │             ├─ wallets
+       │         │          │                │             ├─ wallet_transactions
+       │         │          │                │             ├─ bounties
+       │         │          │                │             └─ escrow_transactions
+       │         │          │                │
+       │         │          │                ├─ WalletRepository
+       │         │          │                └─ BountyRepository
+       │         │          │
+       │         │          ├─ WalletService
+       │         │          └─ BountyService
+       │         │
+       │         ├─ /api/v1/wallet/*
+       │         └─ /api/v1/bounties/*
+       │
+       ├─ Wallet Dashboard
+       ├─ Bounty Creation Form
+       └─ Transaction History
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                              QUICK REFERENCE                                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Create Bounty:  POST /api/v1/bounties
+                → Checks balance
+                → Holds funds in escrow
+                → Creates bounty
+
+Check Balance:  GET /api/v1/wallet/balance
+                → Returns available, held, total
+
+Deposit Funds:  POST /api/v1/wallet/deposit
+                → Adds to available balance
+
+Approve Work:   POST /api/v1/bounties/{id}/approve
+                → Releases payment to artist
+                → Deducts 7.5% platform fee
+
+Cancel Bounty:  DELETE /api/v1/bounties/{id}
+                → Refunds held funds
+                → Returns to available balance
+
+View History:   GET /api/v1/wallet/transactions
+                → Shows all transactions
+                → Filterable by type/status
