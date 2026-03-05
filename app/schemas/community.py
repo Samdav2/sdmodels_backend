@@ -165,6 +165,7 @@ class PostCommentResponse(BaseModel):
 
 # Enable forward references for recursive model
 PostCommentResponse.model_rebuild()
+CommunityDetailResponse.model_rebuild()
 
 
 class ReportCreate(BaseModel):
