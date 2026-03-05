@@ -1,8 +1,11 @@
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime
 from uuid import UUID
 import json
 from pydantic import BaseModel, field_validator
+
+if TYPE_CHECKING:
+    from app.schemas.community import PostResponse
 
 
 class CommunityBase(BaseModel):
@@ -70,12 +73,6 @@ class CommunityResponse(CommunityBase):
     
     class Config:
         from_attributes = True
-
-
-class CommunityDetailResponse(CommunityResponse):
-    """Extended community response with members and posts"""
-    top_members: List[MemberInfo] = []
-    recent_posts: List['PostResponse'] = []
 
 
 class CommunityListResponse(BaseModel):
@@ -163,9 +160,14 @@ class PostCommentResponse(BaseModel):
         from_attributes = True
 
 
+class CommunityDetailResponse(CommunityResponse):
+    """Extended community response with members and posts"""
+    top_members: List[MemberInfo] = []
+    recent_posts: List[PostResponse] = []
+
+
 # Enable forward references for recursive model
 PostCommentResponse.model_rebuild()
-CommunityDetailResponse.model_rebuild()
 
 
 class ReportCreate(BaseModel):
