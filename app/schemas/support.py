@@ -62,6 +62,10 @@ class SupportTicketWithMessages(BaseModel):
         from_attributes = True
 
 
+# Ensure forward references are resolved
+SupportTicketWithMessages.model_rebuild()
+
+
 class TicketStatusUpdate(BaseModel):
     status: str  # pending, active, resolved
 
