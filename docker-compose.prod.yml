@@ -4,123 +4,138 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:14-alpine
-    container_name: sdmodels-postgres
+    container_name: sdmodels-postgres-prod
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sdmodels}
-      POSTGRES_USER: ${POSTGRES_USER:-sdmodels_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sdmodels_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: always
     networks:
       - sdmodels-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: sdmodels-redis
-    ports:
-      - "6379:6379"
+    container_name: sdmodels-redis-prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: always
     networks:
       - sdmodels-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Backend API
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: sdmodels-backend
-    ports:
-      - "8000:8000"
+    image: sdmodels-backend:latest
+    container_name: sdmodels-backend-prod
     environment:
       # Database
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sdmodels_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-sdmodels}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       
       # Redis
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       
       # Security
       SECRET_KEY: ${SECRET_KEY}
-      ALGORITHM: ${ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
       
       # SMTP
       SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL}
-      EMAILS_FROM_NAME: ${EMAILS_FROM_NAME:-SDModels}
+      EMAILS_FROM_NAME: ${EMAILS_FROM_NAME}
       
       # Frontend
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL}
       
-      # AWS (optional)
+      # AWS
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION: ${AWS_REGION}
       AWS_BUCKET_NAME: ${AWS_BUCKET_NAME}
       
-      # Azure (optional)
+      # Azure
       AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
       AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME}
       
-      # Stripe (optional)
+      # Stripe
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
       
-      # Google OAuth (optional)
+      # Google OAuth
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      
+      # Production settings
+      ENVIRONMENT: production
+      DEBUG: false
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./app:/app/app
-      - ./alembic:/app/alembic
-      - ./scripts:/app/scripts
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    restart: unless-stopped
+    restart: always
     networks:
       - sdmodels-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
-  # Adminer (Database Management UI) - Optional
-  adminer:
-    image: adminer:latest
-    container_name: sdmodels-adminer
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: sdmodels-nginx-prod
     ports:
-      - "8080:8080"
-    environment:
-      ADMINER_DEFAULT_SERVER: postgres
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
     depends_on:
-      - postgres
-    restart: unless-stopped
+      - backend
+    restart: always
     networks:
       - sdmodels-network
-    profiles:
-      - tools
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data:
