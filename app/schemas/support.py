@@ -22,24 +22,7 @@ class SupportTicketResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     resolved_at: Optional[datetime]
-    
-    class Config:
-        from_attributes = True
 
-
-class SupportTicketWithMessages(BaseModel):
-    id: UUID
-    user_id: UUID
-    subject: str
-    category: str
-    priority: str
-    status: str
-    assigned_to: Optional[str]
-    created_at: datetime
-    updated_at: datetime
-    resolved_at: Optional[datetime]
-    messages: List['SupportMessageResponse'] = []
-    
     class Config:
         from_attributes = True
 
@@ -57,7 +40,24 @@ class SupportMessageResponse(BaseModel):
     content: str
     attachments: List[str]
     created_at: datetime
-    
+
+    class Config:
+        from_attributes = True
+
+
+class SupportTicketWithMessages(BaseModel):
+    id: UUID
+    user_id: UUID
+    subject: str
+    category: str
+    priority: str
+    status: str
+    assigned_to: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    resolved_at: Optional[datetime]
+    messages: List[SupportMessageResponse] = []
+
     class Config:
         from_attributes = True
 
@@ -80,7 +80,7 @@ class FAQResponse(BaseModel):
     views: int
     helpful_count: int
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
