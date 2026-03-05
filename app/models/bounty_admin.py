@@ -16,8 +16,8 @@ class BountyDispute(SQLModel, table=True):
     status: str = Field(default="open", max_length=50)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     resolved_at: Optional[datetime] = None
-    resolved_by_admin_id: Optional[int] = Field(default=None, foreign_key="users.id")
-    
+    resolved_by_admin_id: Optional[UUID] = Field(default=None, foreign_key="users.id")
+
     __table_args__ = (
         CheckConstraint("raised_by_role IN ('buyer', 'artist')", name="check_raised_by_role"),
         CheckConstraint("status IN ('open', 'resolved', 'escalated')", name="check_dispute_status"),
@@ -35,7 +35,7 @@ class BountyDisputeResolution(SQLModel, table=True):
     refund_percentage: Optional[int] = None
     notes: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     __table_args__ = (
         CheckConstraint("winner IN ('buyer', 'artist')", name="check_winner"),
         CheckConstraint("refund_percentage >= 0 AND refund_percentage <= 100", name="check_refund_percentage"),
@@ -52,7 +52,7 @@ class BountySettings(SQLModel, table=True):
     escrow_hold_days: int = Field(default=3)
     auto_approve_after_days: int = Field(default=14)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_by_admin_id: Optional[int] = Field(default=None, foreign_key="users.id")
+    updated_by_admin_id: Optional[UUID] = Field(default=None, foreign_key="users.id")
 
 
 class UserBountyBan(SQLModel, table=True):
@@ -72,7 +72,7 @@ class AdminBountyAction(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     admin_id: UUID = Field(foreign_key="users.id")
-    bounty_id: Optional[int] = Field(default=None, foreign_key="bounties.id")
+    bounty_id: Optional[UUID] = Field(default=None, foreign_key="bounties.id")
     action_type: str = Field(max_length=100)
     details: str = Field(default="{}", sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
