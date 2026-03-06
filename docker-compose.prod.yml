@@ -53,6 +53,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: sdmodels-backend-prod
+    ports:
+      - "8000:8000"
     environment:
       # Database
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
