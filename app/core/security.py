@@ -3,12 +3,10 @@ from typing import Optional, Dict, Any
 import base64
 from pathlib import Path
 import jwt  # PyJWT library
-from passlib.context import CryptContext
+import bcrypt
 from fastapi import HTTPException, status
 
 from app.core.config import settings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def _load_rsa_key(key_type: str) -> bytes:
@@ -49,13 +47,13 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     """Create JWT access token using RSA private key"""
     if not PRIVATE_KEY:
         raise ValueError("JWT private key not loaded. Cannot create tokens.")
-    
+
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, PRIVATE_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
@@ -65,7 +63,7 @@ def create_refresh_token(data: Dict[str, Any]) -> str:
     """Create JWT refresh token using RSA private key"""
     if not PRIVATE_KEY:
         raise ValueError("JWT private key not loaded. Cannot create tokens.")
-    
+
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire, "type": "refresh"})
@@ -77,7 +75,7 @@ def verify_token(token: str, token_type: str = "access") -> Dict[str, Any]:
     """Verify JWT token using RSA public key"""
     if not PUBLIC_KEY:
         raise ValueError("JWT public key not loaded. Cannot verify tokens.")
-    
+
     try:
         payload = jwt.decode(token, PUBLIC_KEY, algorithms=[settings.JWT_ALGORITHM])
         if payload.get("type") != token_type:
@@ -99,8 +97,12 @@ def verify_token(token: str, token_type: str = "access") -> Dict[str, Any]:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    # bcrypt has a 72-byte limit; truncate to avoid ValueError
+    password_bytes = plain_password.encode("utf-8")[:72]
+    return bcrypt.checkpw(password_bytes, hashed_password.encode("utf-8"))
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    # Truncate to bcrypt's 72-byte limit before hashing
+    password_bytes = password.encode("utf-8")[:72]
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
