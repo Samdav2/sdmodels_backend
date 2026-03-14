@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # 30 days
 
     # CORS
-    BACKEND_CORS_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://localhost:8000,http://localhost:3001,https://sdmodels.com.ng"
+    BACKEND_CORS_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://localhost:8000,http://localhost:3001,https://sdmodels.com.ng,https://sdmodels.com.ng/"
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
