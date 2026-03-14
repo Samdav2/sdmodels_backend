@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     JWT_PRIVATE_KEY_PATH: str = "private_key.pem"
     JWT_PUBLIC_KEY_PATH: str = "public_key.pem"
     # Fallback for base64 encoded keys in env
-    JWT_PRIVATE_KEY: Optional[str] = os.getenv("JWT_PRIVATE_KEY")
+    JWT_PRIVATE_KEY: Optional[str] = None
     JWT_PUBLIC_KEY: Optional[str] = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # 30 days

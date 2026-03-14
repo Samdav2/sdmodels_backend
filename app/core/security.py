@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 import base64
+import binascii
 from pathlib import Path
 import jwt  # PyJWT library
 import bcrypt
@@ -9,26 +10,52 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 
 
+def _decode_key_env(value: str) -> bytes:
+    """
+    Parse a key from an environment variable.
+
+    Handles three formats:
+    1. Raw PEM (starts with '-----BEGIN ...') — returned as-is.
+    2. PEM with literal \\n escapes (Render stores multiline vars this way).
+    3. Base64-encoded PEM — decoded first.
+    """
+    value = value.strip()
+
+    # Replace literal \n escape sequences (common in CI/CD env vars)
+    if "\\n" in value:
+        value = value.replace("\\n", "\n")
+
+    # If it looks like a PEM block, use it directly
+    if value.startswith("-----BEGIN"):
+        return value.encode("utf-8")
+
+    # Otherwise treat as base64
+    padding = 4 - (len(value) % 4)
+    if padding != 4:
+        value += "=" * padding
+    try:
+        return base64.b64decode(value)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError(f"Invalid base64 key: {exc}") from exc
+
+
 def _load_rsa_key(key_type: str) -> bytes:
     """Load RSA key from file or environment variable and return as bytes"""
     if key_type == "private":
-        # Try base64 encoded key from env first
         if settings.JWT_PRIVATE_KEY:
-            return base64.b64decode(settings.JWT_PRIVATE_KEY)
-        # Try loading from file
+            return _decode_key_env(settings.JWT_PRIVATE_KEY)
         key_path = Path(settings.JWT_PRIVATE_KEY_PATH)
         if key_path.exists():
             return key_path.read_bytes()
         raise ValueError("JWT private key not found. Run: python scripts/generate_rsa_keys.py")
     else:  # public
-        # Try base64 encoded key from env first
         if settings.JWT_PUBLIC_KEY:
-            return base64.b64decode(settings.JWT_PUBLIC_KEY)
-        # Try loading from file
+            return _decode_key_env(settings.JWT_PUBLIC_KEY)
         key_path = Path(settings.JWT_PUBLIC_KEY_PATH)
         if key_path.exists():
             return key_path.read_bytes()
         raise ValueError("JWT public key not found. Run: python scripts/generate_rsa_keys.py")
+
 
 
 # Load RSA keys at module initialization
