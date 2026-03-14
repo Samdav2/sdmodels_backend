@@ -22,6 +22,8 @@ packages = [
     "bcrypt>=4.1.2",
     "passlib>=1.7.4",
     "python-multipart>=0.0.6",
+    "pyjwt==2.8.0",
+    "cryptography==42.0.0",
 
     # Settings & Validation
     "pydantic>=2.5.0",
